@@ -1,0 +1,825 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Boulder Wall Routes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-bleed wall photo, floating top bar, bottom route card / edit bar, sheets slide up from the bottom. */
+:root {
+  --bg: #0e0f11;
+  --surface: #f6f4ef;
+  --surface-2: #e9e6df;
+  --fg: #17181a;
+  --muted: #666962;
+  --line: rgba(23,24,26,.14);
+  --accent: #0b7a83;
+  --accent-fg: #ffffff;
+  --danger: #c2301f;
+  --shadow: 0 6px 24px rgba(0,0,0,.28);
+  --f-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #1b1d20; --surface-2: #26292d; --fg: #f1efe9; --muted: #a2a49c;
+    --line: rgba(241,239,233,.16); --accent: #46c6cf; --accent-fg: #06282b; --danger: #ff7a66;
+    --shadow: 0 6px 24px rgba(0,0,0,.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --surface: #1b1d20; --surface-2: #26292d; --fg: #f1efe9; --muted: #a2a49c;
+  --line: rgba(241,239,233,.16); --accent: #46c6cf; --accent-fg: #06282b; --danger: #ff7a66;
+  --shadow: 0 6px 24px rgba(0,0,0,.55);
+  color-scheme: dark;
+}
+:root { box-sizing: border-box; }
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: inherit; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { position: relative; height: 100%; overflow: hidden; background: var(--bg); }
+#stage { position: absolute; inset: 0; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+#stage.editing { cursor: crosshair; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+#wall { display: block; width: 100%; height: 100%; -webkit-user-drag: none; pointer-events: none; }
+#dim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#marks { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+.mark { position: absolute; left: 0; top: 0; border-radius: 50%; border: 3px solid var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,.95), 0 0 0 4px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.25); }
+.mark.foot { border-style: dashed; box-shadow: 0 0 0 2px rgba(255,255,255,.85); }
+.mark.sel { box-shadow: 0 0 0 3px #fff, 0 0 0 7px var(--accent); }
+.mark .tag { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); padding: 1px 6px 0; border-radius: 4px; background: var(--c); color: #fff; font: 700 11px/16px var(--f-display); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; box-shadow: 0 0 0 1.5px rgba(255,255,255,.95); text-shadow: 0 1px 1px rgba(0,0,0,.45); }
+.mark.c-white .tag, .mark.c-yellow .tag { color: #1a1a1a; text-shadow: none; }
+
+.panel { background: color-mix(in srgb, var(--surface) 90%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--shadow); }
+
+#top { position: absolute; left: 12px; right: 12px; top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 14px; }
+#top .name { min-width: 0; }
+#top h1 { margin: 0; font: 700 21px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#top .sub { margin-top: 2px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.tools { display: flex; gap: 2px; flex: none; }
+.ibtn { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
+.ibtn:active { background: var(--surface-2); }
+.ibtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+#card, #editbar { position: absolute; left: 10px; right: 10px; bottom: 10px; border-radius: 16px; padding: 12px 12px 12px 14px; }
+#card { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: center; }
+.grade { min-width: 58px; padding: 6px 8px 4px; text-align: center; border-radius: 10px; background: var(--fg); color: var(--surface); font: 700 30px/1 var(--f-display); letter-spacing: .02em; }
+.grade small { display: block; margin-top: 3px; font: 600 10px/1 var(--f-display); letter-spacing: .14em; opacity: .75; }
+#card .info { min-width: 0; }
+#card h2 { margin: 0; font: 700 22px/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+#card h2 span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: none; background: var(--c); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
+#card .meta { margin-top: 3px; font-size: 13px; color: var(--muted); }
+#card .notes { grid-column: 1 / -1; margin: 6px 0 0; font-size: 14px; line-height: 1.4; max-height: 4.2em; overflow: auto; }
+#card .actions { display: flex; flex-direction: column; gap: 2px; }
+#card .nav { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.chipbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; cursor: pointer; font-weight: 500; font-size: 14px; }
+.chipbtn:active { background: var(--surface-2); }
+.chipbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.chipbtn.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; }
+.chipbtn.danger { color: var(--danger); }
+.chipbtn[disabled] { opacity: .4; pointer-events: none; }
+#pickbar { position: absolute; left: 10px; right: 10px; bottom: 10px; border-radius: 16px; padding: 10px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+
+#editbar { display: grid; gap: 10px; }
+#editbar .hint { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+#editbar .hint b { color: var(--fg); font-weight: 600; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 3px; border-radius: 12px; background: var(--surface-2); }
+.seg button { height: 38px; border: 0; border-radius: 9px; background: transparent; font: 600 15px var(--f-display); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.25); color: var(--accent); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.row .grow { flex: 1 1 auto; justify-content: center; }
+
+#backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+#backdrop.on { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 82%; display: flex; flex-direction: column; background: var(--surface); border-radius: 20px 20px 0 0; box-shadow: var(--shadow); transform: translateY(105%); transition: transform .25s ease; padding-bottom: 8px; visibility: hidden; }
+.sheet.on { transform: none; visibility: visible; }
+.sheet .grab { width: 38px; height: 4px; border-radius: 2px; background: var(--line); margin: 8px auto 0; flex: none; }
+.sheet header { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 6px 18px; flex: none; }
+.sheet header h3 { margin: 0; font: 700 22px/1 var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
+.sheet .body { overflow: auto; padding: 4px 18px 14px; -webkit-overflow-scrolling: touch; }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 4px 18px 10px; flex: none; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 34px; min-width: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; font: 600 16px var(--f-display); letter-spacing: .04em; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--fg); color: var(--surface); border-color: transparent; }
+.rlist { list-style: none; margin: 0; padding: 0; }
+.rlist li { border-top: 1px solid var(--line); }
+.rrow { display: flex; align-items: center; gap: 6px; }
+.rlist .rmain { flex: 1; min-width: 0; display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 12px; padding: 10px 0; background: transparent; border: 0; text-align: left; cursor: pointer; color: inherit; }
+.rdel { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; font: 600 14px var(--f-body); }
+.rdel svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.rdel.armed, .ibtn.armed { width: auto; padding: 0 12px; background: var(--danger); color: #fff; }
+#handle { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0,0,0,.55); pointer-events: none; display: grid; place-items: center; }
+#handle::after { content: ""; width: 8px; height: 8px; border-top: 2px solid var(--accent-fg); border-right: 2px solid var(--accent-fg); transform: rotate(45deg) translate(-1px, 1px); }
+.ibtn[aria-pressed="true"] { color: var(--accent); }
+.mark.ghost { border-width: 2px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.9), 0 0 0 3px rgba(0,0,0,.3); }
+.mark.ghost .tag { font-size: 10px; line-height: 14px; padding: 0 5px; bottom: calc(100% + 4px); }
+.sizerow-unused { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+.sizerow label { font: 600 12px var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 92px; }
+.sizerow input[type=range] { width: 100%; min-width: 0; height: 32px; accent-color: var(--accent); }
+.rlist .g { font: 700 24px/1 var(--f-display); text-align: center; padding: 6px 0 4px; border-radius: 8px; background: var(--surface-2); }
+.rlist .n { font: 600 19px/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .02em; display: flex; align-items: center; gap: 8px; }
+.rlist .m { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.rlist .sel .g { background: var(--accent); color: var(--accent-fg); }
+.badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px; font: 600 10px/14px var(--f-display); letter-spacing: .1em; text-transform: uppercase; background: var(--surface-2); color: var(--muted); }
+.empty { padding: 22px 0; color: var(--muted); text-align: center; }
+.field { display: grid; gap: 6px; margin: 0 0 14px; }
+.field label, .field .lbl { font: 600 12px var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.field input[type=text], .field textarea { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-input, transparent); color: var(--fg); font: 16px var(--f-body); }
+.field textarea { min-height: 80px; resize: vertical; }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.sw { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--c); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.sw[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--fg); }
+.gradegrid { display: flex; gap: 6px; flex-wrap: wrap; }
+.qrbox { display: grid; justify-items: center; gap: 12px; text-align: center; padding: 8px 0; }
+.qrbox img { width: min(260px, 70vw); aspect-ratio: 1; background: #fff; padding: 12px; border-radius: 14px; image-rendering: pixelated; }
+.qrbox code { font-size: 12.5px; word-break: break-all; color: var(--muted); }
+textarea.raw { width: 100%; height: 120px; font: 12px ui-monospace, monospace; color: var(--fg); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+#toast { position: absolute; left: 50%; top: 72px; transform: translate(-50%, -12px); max-width: calc(100% - 32px); padding: 9px 14px; border-radius: 999px; background: var(--fg); color: var(--surface); font-size: 14px; font-weight: 500; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; text-align: center; }
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+#loading { position: absolute; inset: 0; display: grid; place-items: center; color: #cfcfc8; font: 600 18px var(--f-display); letter-spacing: .14em; text-transform: uppercase; background: var(--bg); transition: opacity .3s; }
+#loading.done { opacity: 0; pointer-events: none; }
+@media (min-width: 720px) {
+  #top, #card, #editbar, #pickbar { left: 50%; right: auto; width: 520px; transform: translateX(-50%); }
+  #top { left: 16px; transform: none; width: 520px; }
+  .sheet { left: 50%; right: auto; width: 560px; transform: translate(-50%, 105%); }
+  .sheet.on { transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .sheet, #backdrop, #toast, #loading { transition: none; } }
+</style>
+
+<div id="app">
+  <div id="stage">
+    <div id="world"><img id="wall" src="wall.webp" alt="Panorama of the whole bouldering wall" draggable="false"></div>
+    <svg id="dim" aria-hidden="true">
+      <defs><mask id="dimmask"><rect width="100%" height="100%" fill="#fff"></rect><g id="holes"></g></mask></defs>
+      <rect id="dimrect" width="100%" height="100%" fill="#000" fill-opacity="0.55" mask="url(#dimmask)" hidden></rect>
+    </svg>
+    <div id="marks"></div>
+    <div id="handle" hidden aria-hidden="true"></div>
+  </div>
+
+  <header id="top" class="panel">
+    <div class="name"><h1 id="wallname">Boulder Wall</h1><div class="sub" id="wallsub">Loading routes</div></div>
+    <div class="tools">
+      <button class="ibtn" id="b-starts" aria-label="Show the starts of other routes" aria-pressed="true" title="Show other starts"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></button>
+      <button class="ibtn" id="b-fit" aria-label="Show whole wall" title="Whole wall"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg></button>
+      <button class="ibtn" id="b-qr" aria-label="Share with a QR code" title="QR code" hidden><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 14h2v2M14 18h2v2M18 18h2v2"/></svg></button>
+      <button class="ibtn" id="b-list" aria-label="All routes" title="All routes"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
+    </div>
+  </header>
+
+  <section id="pickbar" class="panel" hidden>
+    <span id="pickmsg">Pick a route to see its holds.</span>
+    <button class="chipbtn primary" id="b-pick">Routes</button>
+  </section>
+
+  <section id="card" class="panel" hidden>
+    <div class="grade" id="c-grade">V3<small>GRADE</small></div>
+    <div class="info">
+      <h2><i class="dot" id="c-dot"></i><span class="t" id="c-name"></span></h2>
+      <div class="meta" id="c-meta"></div>
+    </div>
+    <div class="actions">
+      <button class="ibtn" id="b-edit" aria-label="Edit this route" title="Edit route" hidden><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>
+      <button class="ibtn" id="b-del" aria-label="Delete this route" title="Delete route" hidden><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12M10 11v5M14 11v5"/></svg></button>
+      <button class="ibtn" id="b-clear" aria-label="Clear selection" title="Clear"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <p class="notes" id="c-notes"></p>
+    <div class="nav">
+      <button class="chipbtn" id="b-prev"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>Prev</button>
+      <span id="c-count" style="font-size:13px;color:var(--muted)"></span>
+      <button class="chipbtn" id="b-next">Next<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+  </section>
+
+  <section id="editbar" class="panel" hidden>
+    <div class="hint"><span id="e-hint">Tap the wall to add a hold.</span><b id="e-count">0 holds</b></div>
+    <div class="seg" id="e-tools" role="group" aria-label="Hold type">
+      <button data-role="hold" aria-pressed="true">Hold</button>
+      <button data-role="start" aria-pressed="false">Start</button>
+      <button data-role="top" aria-pressed="false">Top</button>
+      <button data-role="foot" aria-pressed="false">Foot</button>
+    </div>
+    <div class="row">
+      <button class="chipbtn" id="e-undo">Undo</button>
+      <button class="chipbtn" id="e-sizeall" disabled>Same size for all</button>
+      <button class="chipbtn danger" id="e-remove" disabled>Remove hold</button>
+      <button class="chipbtn grow" id="e-details">Details</button>
+    </div>
+    <div class="row">
+      <button class="chipbtn grow" id="e-cancel">Cancel</button>
+      <button class="chipbtn primary grow" id="e-save">Save route</button>
+    </div>
+  </section>
+
+  <div id="backdrop"></div>
+
+  <section class="sheet" id="s-list" aria-label="Routes">
+    <div class="grab"></div>
+    <header><h3>Routes</h3><div class="tools"><button class="chipbtn primary" id="b-new" hidden>New route</button><button class="ibtn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></header>
+    <div class="chips" id="l-chips"></div>
+    <div class="body"><ul class="rlist" id="l-list"></ul></div>
+  </section>
+
+  <section class="sheet" id="s-form" aria-label="Route details">
+    <div class="grab"></div>
+    <header><h3 id="f-title">Route details</h3><button class="ibtn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <div class="field"><label for="f-name">Name</label><input type="text" id="f-name" maxlength="40" autocomplete="off" placeholder="e.g. Pink Line"></div>
+      <div class="field"><span class="lbl">Grade</span><div class="gradegrid" id="f-grades"></div></div>
+      <div class="field"><span class="lbl">Hold colour</span><div class="swatches" id="f-colors"></div></div>
+      <div class="field"><label for="f-setter">Setter</label><input type="text" id="f-setter" maxlength="40" autocomplete="off" placeholder="Who set it"></div>
+      <div class="field"><label for="f-notes">Beta and notes</label><textarea id="f-notes" maxlength="400" placeholder="Start position, tips, style"></textarea></div>
+      <div class="row">
+        <button class="chipbtn danger" id="f-delete" hidden>Delete route</button>
+        <button class="chipbtn primary grow" id="f-done">Done</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sheet" id="s-qr" aria-label="Share">
+    <div class="grab"></div>
+    <header><h3>Open on your phone</h3><button class="ibtn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body"><div class="qrbox"><img id="qr-img" src="qr.png" alt="QR code linking to this page"><div>Scan with a phone camera to see every route on the wall.</div><code id="qr-url"></code></div></div>
+  </section>
+
+  <section class="sheet" id="s-save" aria-label="Saving">
+    <div class="grab"></div>
+    <header><h3>Not saved yet</h3><button class="ibtn" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <p id="sv-msg" style="margin:0 0 12px;line-height:1.45"></p>
+      <textarea class="raw" id="sv-raw" readonly aria-label="Route data"></textarea>
+      <div class="row" style="margin-top:10px"><button class="chipbtn primary grow" id="sv-copy">Copy route data</button></div>
+    </div>
+  </section>
+
+  <div id="toast" role="status"></div>
+  <div id="loading">Loading the wall</div>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const COLORS = { red: '#e5383b', orange: '#f07a12', yellow: '#e8b923', green: '#2fa44f', blue: '#2f6fed', purple: '#8e4ec6', pink: '#e83e8c', white: '#f4f4f0', black: '#17181a' };
+  const ROLE_TAG = { start: 'Start', top: 'Top', foot: '', hold: '' };
+  const DEF_R = 0.0085;
+  const stage = $('#stage'), world = $('#world'), wall = $('#wall');
+
+  let data = null;            // { rev, wall, grades, routes }
+  let canEdit = false;
+  let artifact = null;
+  let selId = null;           // selected route id
+  let editing = null;         // { draft, isNew, tool, selHold }
+  let filterGrade = 'All';
+  let IW = 1, IH = 1, s = 1, tx = 0, ty = 0, minS = 0.05, maxS = 2;
+  let marks = [];             // [{ el, hole, h }]
+  let anim = 0;
+  let showStarts = true;      // keep other routes' starts visible while one route is selected
+  let armDel = null, armT = 0; // route id waiting for a second tap to delete
+  const TRASH = '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12M10 11v5M14 11v5"/></svg>';
+
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const gradeIdx = (g) => { const i = (data.grades || []).indexOf(g); return i < 0 ? 99 : i; };
+  const routeById = (id) => data.routes.find((r) => r.id === id);
+  const sorted = () => data.routes.slice().sort((a, b) => gradeIdx(a.grade) - gradeIdx(b.grade) || a.name.localeCompare(b.name));
+  const colorOf = (r) => COLORS[r.color] || r.color || COLORS.red;
+
+  let toastT = 0;
+  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2400); }
+
+  /* ---------- view transform ---------- */
+  function insets() {
+    const top = 64;
+    let bot = 76;
+    const c = !$('#card').hidden ? $('#card') : !$('#editbar').hidden ? $('#editbar') : !$('#pickbar').hidden ? $('#pickbar') : null;
+    if (c) bot = c.offsetHeight + 20;
+    return { top, bot };
+  }
+  function clampView() {
+    const vw = stage.clientWidth, vh = stage.clientHeight, w = IW * s, h = IH * s, { top, bot } = insets();
+    tx = w <= vw ? (vw - w) / 2 : clamp(tx, vw - w - 12, 12);
+    const avail = vh - top - bot;
+    ty = h <= avail ? top + (avail - h) / 2 : clamp(ty, vh - bot - h, top);
+  }
+  function limits() {
+    const vw = stage.clientWidth;
+    minS = vw / IW;
+    maxS = Math.max(minS * 8, 0.9);
+  }
+  function apply() {
+    clampView();
+    world.style.width = IW + 'px'; world.style.height = IH + 'px';
+    world.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+    placeMarks();
+  }
+  function zoomAt(px, py, ns) {
+    ns = clamp(ns, minS, maxS);
+    const k = ns / s;
+    tx = px - (px - tx) * k; ty = py - (py - ty) * k; s = ns;
+    apply();
+  }
+  function animateTo(ns, ntx, nty, ms = 380) {
+    cancelAnimationFrame(anim);
+    const s0 = s, x0 = tx, y0 = ty, t0 = performance.now();
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { s = ns; tx = ntx; ty = nty; apply(); return; }
+    const step = (t) => {
+      const p = clamp((t - t0) / ms, 0, 1), e = 1 - Math.pow(1 - p, 3);
+      s = s0 + (ns - s0) * e; tx = x0 + (ntx - x0) * e; ty = y0 + (nty - y0) * e;
+      apply();
+      if (p < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+  function fitBox(x0, y0, x1, y1, margin = 34, maxZoomFactor = 6) {
+    limits();
+    const vw = stage.clientWidth, vh = stage.clientHeight, { top, bot } = insets();
+    const bw = Math.max((x1 - x0) * IW, 60), bh = Math.max((y1 - y0) * IH, 60);
+    const availH = vh - top - bot;
+    let ns = Math.min((vw - margin * 2) / bw, (availH - margin * 2) / bh);
+    ns = clamp(ns, minS, Math.min(maxS, minS * maxZoomFactor));
+    const cx = ((x0 + x1) / 2) * IW * ns, cy = ((y0 + y1) / 2) * IH * ns;
+    animateTo(ns, vw / 2 - cx, top + availH / 2 - cy);
+  }
+  function fitAll() {
+    limits();
+    const vw = stage.clientWidth, vh = stage.clientHeight, { top, bot } = insets();
+    const avail = vh - top - bot;
+    animateTo(minS, vw / 2 - (IW * minS) / 2, top + (avail - IH * minS) / 2);
+  }
+  function fitRoute(r) {
+    const hs = r.holds || [];
+    if (!hs.length) return fitAll();
+    let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+    hs.forEach((h) => { x0 = Math.min(x0, h.x); y0 = Math.min(y0, h.y); x1 = Math.max(x1, h.x); y1 = Math.max(y1, h.y); });
+    fitBox(x0, y0, x1, y1);
+  }
+
+  /* ---------- hold markers + spotlight ---------- */
+  function startsOf(r) {
+    const hs = r.holds || [];
+    const st = hs.filter((h) => h.role === 'start');
+    return st.length ? st : hs.slice(0, 1);
+  }
+  function layerItems() {
+    const items = [];
+    if (editing) {
+      const d = editing.draft;
+      d.holds.forEach((h, i) => items.push({ h, i, color: colorOf(d), key: d.color, tag: ROLE_TAG[h.role], role: h.role, active: true }));
+      return items;
+    }
+    const sel = selId && routeById(selId);
+    if (sel) (sel.holds || []).forEach((h, i) => items.push({ h, i, color: colorOf(sel), key: sel.color, tag: ROLE_TAG[h.role], role: h.role, active: true, routeId: sel.id }));
+    if (!sel || showStarts) {
+      data.routes.forEach((r) => {
+        if (sel && r.id === sel.id) return;
+        startsOf(r).forEach((h) => items.push({ h, color: colorOf(r), key: r.color, tag: r.grade, role: 'start', ghost: !!sel, active: false, routeId: r.id }));
+      });
+    }
+    return items;
+  }
+  function buildMarks() {
+    const layer = $('#marks'), holes = $('#holes');
+    layer.innerHTML = ''; holes.innerHTML = ''; marks = [];
+    const items = layerItems();
+    items.forEach((it) => {
+      const el = document.createElement('div');
+      el.className = 'mark ' + it.role + (it.ghost ? ' ghost' : '') + ' c-' + it.key;
+      el.style.setProperty('--c', it.color);
+      if (it.tag) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = it.tag; el.appendChild(t); }
+      layer.appendChild(el);
+      const hole = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      hole.setAttribute('fill', '#000');
+      holes.appendChild(hole);
+      marks.push({ el, hole, it });
+    });
+    const dimOn = !!(editing || selId) && items.some((x) => x.active);
+    $('#dimrect').toggleAttribute('hidden', !dimOn);
+    placeMarks();
+  }
+  function refreshMarks() { buildMarks(); }
+  function markSize(it) {
+    let d = clamp(2 * (it.h.r || DEF_R) * IW * s * 1.25, 14, 420);
+    if (it.role === 'foot') d *= 0.78;
+    if (it.ghost) d = clamp(d * 0.8, 14, 34);
+    if (!it.active && !it.ghost) d = Math.max(d, 22);
+    return d;
+  }
+  function placeMarks() {
+    marks.forEach(({ el, hole, it }) => {
+      const h = it.h, sx = tx + h.x * IW * s, sy = ty + h.y * IH * s, d = markSize(it);
+      el.style.width = el.style.height = d + 'px';
+      el.style.transform = `translate(${sx - d / 2}px,${sy - d / 2}px)`;
+      el.classList.toggle('sel', !!editing && editing.selHold === it.i);
+      hole.setAttribute('cx', sx); hole.setAttribute('cy', sy); hole.setAttribute('r', d / 2 + 5);
+    });
+    const hp = handlePos(), hd = $('#handle');
+    hd.hidden = !hp;
+    if (hp) hd.style.transform = `translate(${hp.hx}px,${hp.hy}px)`;
+  }
+
+  /* ---------- gestures ---------- */
+  const ptrs = new Map();
+  let g = null; // gesture state
+  stage.addEventListener('pointerdown', (e) => {
+    stage.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    cancelAnimationFrame(anim);
+    if (ptrs.size === 1) { g = { x0: e.clientX, y0: e.clientY, t0: performance.now(), moved: false, pinch: false }; if (editing) beginEditGesture(e); }
+    else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; g = { pinch: true, moved: true, d0: Math.hypot(a.x - b.x, a.y - b.y), s0: s }; }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    const p = ptrs.get(e.pointerId); if (!p || !g) return;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1 && g.mode) {
+      if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 4) g.moved = true;
+      if (g.moved) { const [px, py] = localXY(e); editMove(px, py); }
+    } else if (ptrs.size === 1) {
+      if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 8) g.moved = true;
+      if (g.moved) { tx += dx; ty += dy; apply(); }
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y), r = stage.getBoundingClientRect();
+      const cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top;
+      if (g.d0) zoomAt(cx, cy, g.s0 * (d / g.d0));
+    }
+  });
+  const lastTap = { t: 0, x: 0, y: 0 };
+  function endPtr(e) {
+    const had = ptrs.delete(e.pointerId);
+    if (!had || !g) return;
+    if (ptrs.size === 0) {
+      const wasTap = !g.moved && performance.now() - g.t0 < 450 && e.type === 'pointerup';
+      const r = stage.getBoundingClientRect();
+      if (g.mode) {
+        if (editing && !g.moved && g.mode === 'drag' && g.wasSel) { editing.selHold = null; syncEditBar(); placeMarks(); }
+        g = null; return;
+      }
+      g = null;
+      if (wasTap) onTap(e.clientX - r.left, e.clientY - r.top);
+    } else if (ptrs.size === 1) { g = { moved: true, pinch: false }; }
+  }
+  stage.addEventListener('pointerup', endPtr);
+  stage.addEventListener('pointercancel', endPtr);
+  stage.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = stage.getBoundingClientRect();
+    if (editing && editing.selHold != null) {
+      const m = marks[editing.selHold];
+      const sx = tx + m.it.h.x * IW * s, sy = ty + m.it.h.y * IH * s;
+      if (Math.hypot(e.clientX - r.left - sx, e.clientY - r.top - sy) <= markSize(m.it) / 2 + 12) {
+        m.it.h.r = clamp((m.it.h.r || DEF_R) * Math.exp(-e.deltaY * 0.0015), 0.002, 0.05); placeMarks(); return;
+      }
+    }
+    zoomAt(e.clientX - r.left, e.clientY - r.top, s * Math.exp(-e.deltaY * 0.0016));
+  }, { passive: false });
+
+  function onTap(px, py) {
+    if (editing) return tapEdit(px, py);
+    const mi = nearestMark(px, py, (it) => !it.active && it.routeId);
+    if (mi >= 0) { selectRoute(marks[mi].it.routeId); return; }
+    const now = performance.now();
+    if (now - lastTap.t < 320 && Math.hypot(px - lastTap.x, py - lastTap.y) < 30) {
+      lastTap.t = 0;
+      const ns = s < minS * 3 ? Math.min(maxS, s * 2.4) : minS * 1.0;
+      const k = ns / s;
+      animateTo(ns, px - (px - tx) * k, py - (py - ty) * k, 260);
+      return;
+    }
+    lastTap.t = now; lastTap.x = px; lastTap.y = py;
+  }
+
+  /* ---------- edit mode ---------- */
+  function nearestMark(px, py, want) {
+    let best = -1, bd = 1e9;
+    marks.forEach(({ it }, i) => {
+      if (want && !want(it)) return;
+      const sx = tx + it.h.x * IW * s, sy = ty + it.h.y * IH * s;
+      const d = Math.hypot(sx - px, sy - py);
+      if (d < bd && d <= Math.max(markSize(it) / 2 + 8, 24)) { bd = d; best = i; }
+    });
+    return best;
+  }
+  function localXY(e) { const r = stage.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  function handlePos() {
+    if (!editing || editing.selHold == null || !marks[editing.selHold]) return null;
+    const it = marks[editing.selHold].it, d = markSize(it);
+    const sx = tx + it.h.x * IW * s, sy = ty + it.h.y * IH * s;
+    return { hx: sx + d / 2, hy: sy };
+  }
+  function beginEditGesture(e) {
+    const [px, py] = localXY(e);
+    const hp = handlePos();
+    if (hp && Math.hypot(px - hp.hx, py - hp.hy) <= 26) { g.mode = 'resize'; g.idx = editing.selHold; return; }
+    const i = nearestMark(px, py);
+    if (i >= 0) {
+      const it = marks[i].it;
+      g.mode = 'drag'; g.idx = i; g.wasSel = editing.selHold === i;
+      g.dx = px - (tx + it.h.x * IW * s); g.dy = py - (ty + it.h.y * IH * s);
+      if (!g.wasSel) { editing.selHold = i; syncEditBar(); placeMarks(); }
+    }
+  }
+  function editMove(px, py) {
+    const m = marks[g.idx]; if (!m) return;
+    const h = m.it.h;
+    if (g.mode === 'drag') {
+      h.x = +clamp((px - g.dx - tx) / (IW * s), 0, 1).toFixed(4);
+      h.y = +clamp((py - g.dy - ty) / (IH * s), 0, 1).toFixed(4);
+    } else {
+      const sx = tx + h.x * IW * s, sy = ty + h.y * IH * s, f = m.it.role === 'foot' ? 0.78 : 1;
+      h.r = +clamp(Math.hypot(px - sx, py - sy) / (IW * s * 1.25 * f), 0.002, 0.05).toFixed(5);
+    }
+    placeMarks();
+  }
+  function tapEdit(px, py) {
+    if (nearestMark(px, py) >= 0) return;
+    const x = (px - tx) / (IW * s), y = (py - ty) / (IH * s);
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    editing.draft.holds.push({ x: +x.toFixed(4), y: +y.toFixed(4), r: editing.defaultR, role: editing.tool });
+    editing.selHold = null;
+    editing.history.push('add');
+    refreshMarks(); syncEditBar(); placeMarks();
+  }
+  function syncEditBar() {
+    const n = editing.draft.holds.length;
+    $('#e-count').textContent = n + (n === 1 ? ' hold' : ' holds');
+    $('#e-remove').disabled = editing.selHold == null;
+    $('#e-hint').textContent = editing.selHold == null ? 'Tap the wall to add a hold. Tap a hold to move or resize it.' : 'Drag the hold to move it, or drag the round handle to resize it.';
+    document.querySelectorAll('#e-tools button').forEach((b) => {
+      const role = editing.selHold != null ? editing.draft.holds[editing.selHold].role : editing.tool;
+      b.setAttribute('aria-pressed', String(b.dataset.role === role));
+    });
+    $('#e-undo').disabled = !editing.history.length;
+    $('#e-sizeall').disabled = editing.selHold == null;
+  }
+  $('#e-sizeall').addEventListener('click', () => {
+    if (!editing || editing.selHold == null) return;
+    const r = editing.draft.holds[editing.selHold].r || DEF_R;
+    editing.defaultR = r; editing.draft.holds.forEach((h) => { h.r = r; });
+    placeMarks(); toast('All holds set to this size');
+  });
+  function startEdit(route, isNew) {
+    closeSheets();
+    editing = { draft: JSON.parse(JSON.stringify(route)), isNew, tool: 'hold', selHold: null, history: [], defaultR: DEF_R };
+    { const hs = route.holds || []; if (hs.length && hs[hs.length - 1].r) editing.defaultR = hs[hs.length - 1].r; }
+    delete editing.draft.sample;
+    stage.classList.add('editing');
+    $('#card').hidden = true; $('#pickbar').hidden = true; $('#editbar').hidden = false;
+    $('#top').hidden = false;
+    refreshMarks(); syncEditBar();
+    if (editing.draft.holds.length) fitRoute(editing.draft); else fitAll();
+  }
+  function endEdit() {
+    editing = null;
+    stage.classList.remove('editing');
+    $('#editbar').hidden = true;
+    renderChrome(); refreshMarks();
+  }
+  $('#e-tools').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || !editing) return;
+    if (editing.selHold != null) { editing.draft.holds[editing.selHold].role = b.dataset.role; refreshMarks(); }
+    else editing.tool = b.dataset.role;
+    syncEditBar(); placeMarks();
+  });
+  $('#e-undo').addEventListener('click', () => {
+    if (!editing || !editing.history.length) return;
+    editing.history.pop(); editing.draft.holds.pop(); editing.selHold = null; refreshMarks(); syncEditBar();
+  });
+  $('#e-remove').addEventListener('click', () => {
+    if (editing.selHold == null) return;
+    editing.draft.holds.splice(editing.selHold, 1); editing.selHold = null; editing.history.length = Math.min(editing.history.length, editing.draft.holds.length);
+    refreshMarks(); syncEditBar();
+  });
+  $('#e-cancel').addEventListener('click', endEdit);
+  $('#e-details').addEventListener('click', () => openForm());
+  $('#e-save').addEventListener('click', saveRoute);
+
+  /* ---------- sheets ---------- */
+  let openSheet = null;
+  function showSheet(id) {
+    closeSheets(true);
+    $(id).classList.add('on'); $('#backdrop').classList.add('on'); openSheet = id;
+  }
+  function closeSheets(keep) {
+    document.querySelectorAll('.sheet.on').forEach((n) => n.classList.remove('on'));
+    $('#backdrop').classList.remove('on'); openSheet = null;
+    if (!keep && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+  $('#backdrop').addEventListener('click', () => { if (openSheet === '#s-form') readForm(); closeSheets(); });
+  document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => { if (openSheet === '#s-form') readForm(); closeSheets(); }));
+
+  function renderList() {
+    const grades = [...new Set(data.routes.map((r) => r.grade))].sort((a, b) => gradeIdx(a) - gradeIdx(b));
+    const chips = $('#l-chips'); chips.innerHTML = '';
+    if (filterGrade !== 'All' && !grades.includes(filterGrade)) filterGrade = 'All';
+    ['All', ...grades].forEach((gr) => {
+      const b = document.createElement('button'); b.className = 'chip'; b.textContent = gr; b.setAttribute('aria-pressed', String(gr === filterGrade));
+      b.addEventListener('click', () => { filterGrade = gr; renderList(); });
+      chips.appendChild(b);
+    });
+    const ul = $('#l-list'); ul.innerHTML = '';
+    const rows = sorted().filter((r) => filterGrade === 'All' || r.grade === filterGrade);
+    if (!rows.length) { ul.innerHTML = '<li class="empty">No routes yet.</li>'; return; }
+    rows.forEach((r) => {
+      const li = document.createElement('li');
+      const armed = armDel === r.id;
+      li.innerHTML = `<div class="rrow"><button class="rmain ${r.id === selId ? 'sel' : ''}" data-id="${esc(r.id)}"><span class="g">${esc(r.grade)}</span><span><div class="n"><i class="dot" style="--c:${colorOf(r)}"></i>${esc(r.name)}${r.sample ? '<span class="badge">Example</span>' : ''}</div><div class="m">${esc(r.setter || 'Setter unknown')} \u00b7 ${(r.holds || []).length} holds</div></span></button>${canEdit ? `<button class="rdel ${armed ? 'armed' : ''}" data-del="${esc(r.id)}" aria-label="Delete ${esc(r.name)}">${armed ? 'Delete?' : TRASH}</button>` : ''}</div>`;
+      ul.appendChild(li);
+    });
+  }
+  function armDelete(id) {
+    armDel = id; clearTimeout(armT);
+    armT = setTimeout(() => { armDel = null; if (openSheet === '#s-list') renderList(); syncDelBtn(); }, 3500);
+  }
+  function syncDelBtn() { $('#b-del').classList.toggle('armed', !!selId && armDel === selId); $('#b-del').setAttribute('aria-label', armDel === selId ? 'Tap again to delete this route' : 'Delete this route'); }
+  async function deleteRoute(id) {
+    const r = routeById(id);
+    data.routes = data.routes.filter((x) => x.id !== id);
+    if (selId === id) selId = null;
+    armDel = null; data.rev++;
+    if (openSheet === '#s-list') renderList();
+    renderChrome(); refreshMarks();
+    await persist('Deleted ' + (r ? r.name : 'route'));
+  }
+  $('#l-list').addEventListener('click', async (e) => {
+    const d = e.target.closest('[data-del]');
+    if (d) {
+      const id = d.dataset.del;
+      if (armDel === id) await deleteRoute(id); else { armDelete(id); renderList(); }
+      return;
+    }
+    const b = e.target.closest('button[data-id]'); if (!b) return;
+    closeSheets(); selectRoute(b.dataset.id);
+  });
+  $('#b-del').addEventListener('click', async () => {
+    if (!selId) return;
+    if (armDel === selId) await deleteRoute(selId); else { armDelete(selId); syncDelBtn(); toast('Tap the bin again to delete'); }
+  });
+  $('#b-starts').addEventListener('click', () => {
+    showStarts = !showStarts;
+    $('#b-starts').setAttribute('aria-pressed', String(showStarts));
+    refreshMarks(); toast(showStarts ? 'Showing other starts' : 'Other starts hidden');
+  });
+  $('#b-list').addEventListener('click', () => { renderList(); showSheet('#s-list'); });
+  $('#b-pick').addEventListener('click', () => { renderList(); showSheet('#s-list'); });
+  $('#b-new').addEventListener('click', () => {
+    const route = { id: 'r' + Date.now().toString(36), name: '', grade: 'V2', color: 'red', setter: '', notes: '', date: new Date().toISOString().slice(0, 10), holds: [] };
+    startEdit(route, true); openForm(true);
+  });
+
+  /* ---------- details form ---------- */
+  function openForm(first) {
+    const d = editing.draft;
+    $('#f-title').textContent = editing.isNew ? 'New route' : 'Route details';
+    $('#f-name').value = d.name; $('#f-setter').value = d.setter || ''; $('#f-notes').value = d.notes || '';
+    const gg = $('#f-grades'); gg.innerHTML = '';
+    data.grades.forEach((gr) => {
+      const b = document.createElement('button'); b.className = 'chip'; b.textContent = gr; b.setAttribute('aria-pressed', String(gr === d.grade));
+      b.addEventListener('click', () => { d.grade = gr; gg.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c.textContent === gr))); });
+      gg.appendChild(b);
+    });
+    const cc = $('#f-colors'); cc.innerHTML = '';
+    Object.keys(COLORS).forEach((k) => {
+      const b = document.createElement('button'); b.className = 'sw'; b.style.setProperty('--c', COLORS[k]); b.setAttribute('aria-label', k); b.setAttribute('aria-pressed', String(k === d.color));
+      b.addEventListener('click', () => { d.color = k; cc.querySelectorAll('.sw').forEach((c) => c.setAttribute('aria-pressed', String(c.getAttribute('aria-label') === k))); refreshMarks(); });
+      cc.appendChild(b);
+    });
+    $('#f-done').textContent = first ? 'Start marking holds' : 'Done';
+    const del = $('#f-delete'); del.hidden = editing.isNew; del.textContent = 'Delete route'; del.dataset.armed = '';
+    showSheet('#s-form');
+  }
+  function readForm() {
+    if (!editing) return;
+    const d = editing.draft;
+    d.name = $('#f-name').value.trim(); d.setter = $('#f-setter').value.trim(); d.notes = $('#f-notes').value.trim();
+  }
+  $('#f-done').addEventListener('click', () => { readForm(); closeSheets(); });
+  $('#f-delete').addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Tap again to delete'; return; }
+    const id = editing.draft.id;
+    data.routes = data.routes.filter((r) => r.id !== id);
+    if (selId === id) selId = null;
+    data.rev++;
+    closeSheets(); endEdit();
+    await persist('Route deleted');
+  });
+
+  /* ---------- selecting + chrome ---------- */
+  function selectRoute(id) {
+    selId = id; renderChrome(); refreshMarks();
+    const r = routeById(id); if (r) setTimeout(() => fitRoute(r), 30);
+  }
+  function renderChrome() {
+    const n = data.routes.length;
+    $('#wallname').textContent = data.wall.name || 'Boulder Wall';
+    $('#wallsub').textContent = n + (n === 1 ? ' route' : ' routes') + ' on the wall';
+    const r = selId && routeById(selId);
+    $('#card').hidden = !r || !!editing;
+    $('#pickbar').hidden = !!r || !!editing;
+    $('#pickmsg').textContent = n ? 'Tap a start on the wall to see its route.' : (canEdit ? 'No routes yet. Add the first one.' : 'No routes have been added yet.');
+    if (r) {
+      $('#c-grade').innerHTML = esc(r.grade) + '<small>GRADE</small>';
+      $('#c-name').textContent = r.name;
+      $('#c-dot').style.setProperty('--c', colorOf(r));
+      const bits = [r.setter ? 'Set by ' + r.setter : '', r.date || '', (r.holds || []).length + ' holds'].filter(Boolean);
+      $('#c-meta').textContent = bits.join(' \u00b7 ');
+      $('#c-notes').textContent = r.notes || ''; $('#c-notes').hidden = !r.notes;
+      const list = sorted(), i = list.findIndex((x) => x.id === r.id);
+      $('#c-count').textContent = (i + 1) + ' of ' + list.length;
+    }
+    $('#b-edit').hidden = !canEdit; $('#b-del').hidden = !canEdit; $('#b-new').hidden = !canEdit;
+    syncDelBtn();
+  }
+  function step(dir) {
+    const list = sorted(); if (!list.length) return;
+    const i = list.findIndex((x) => x.id === selId);
+    selectRoute(list[(i + dir + list.length) % list.length].id);
+  }
+  $('#b-prev').addEventListener('click', () => step(-1));
+  $('#b-next').addEventListener('click', () => step(1));
+  $('#b-clear').addEventListener('click', () => { selId = null; renderChrome(); refreshMarks(); fitAll(); });
+  $('#b-fit').addEventListener('click', () => { if (editing) fitAll(); else { fitAll(); } });
+  $('#b-edit').addEventListener('click', () => { const r = selId && routeById(selId); if (r) startEdit(r, false); });
+  $('#b-qr').addEventListener('click', () => { $('#qr-url').textContent = (data.wall.shareUrl || '').replace(/^https?:\/\//, ''); showSheet('#s-qr'); });
+  $('#qr-img').addEventListener('error', () => { $('#b-qr').hidden = true; });
+  $('#qr-img').addEventListener('load', () => { $('#b-qr').hidden = false; });
+
+  /* ---------- saving ---------- */
+  async function saveRoute() {
+    readForm();
+    const d = editing.draft;
+    if (!d.name) { toast('Give the route a name first'); return openForm(); }
+    if (!d.holds.length) { toast('Tap the wall to add at least one hold'); return; }
+    const i = data.routes.findIndex((r) => r.id === d.id);
+    const clean = JSON.parse(JSON.stringify(d));
+    if (i >= 0) data.routes[i] = clean; else data.routes.push(clean);
+    data.rev++;
+    selId = clean.id;
+    endEdit();
+    await persist('Route saved');
+  }
+  async function persist(okMsg) {
+    const text = JSON.stringify(data, null, 1);
+    try {
+      artifact = artifact || (window.claude && (await window.claude.use('artifact')));
+      if (!artifact) throw { code: 'not_granted' };
+      await artifact.publish({ 'routes.json': { content: text, contentType: 'application/json' } });
+      toast(okMsg);
+    } catch (err) {
+      const code = err && err.code;
+      let msg = 'Your changes are showing here but could not be saved for everyone.';
+      if (code === 'not_writer' || code === 'not_granted') msg = 'This page is view-only for you, so the change was not saved.';
+      else if (code === 'conflict') msg = 'Someone else saved a newer version first. Reload the page and redo your change.';
+      else if (code === 'capability_disabled' || code === 'capability_removed' || code === 'not_declared') msg = 'Saving from this view is not available. Copy the route data below and send it to Claude to add it to the page.';
+      $('#sv-msg').textContent = msg; $('#sv-raw').value = text; showSheet('#s-save');
+    }
+    renderChrome(); refreshMarks();
+  }
+  $('#sv-copy').addEventListener('click', async () => {
+    const raw = $('#sv-raw');
+    try { await navigator.clipboard.writeText(raw.value); toast('Copied'); }
+    catch (e) { raw.focus(); raw.select(); toast('Select and copy the text'); }
+  });
+
+  /* ---------- boot ---------- */
+  function onResize() { if (!data) return; const keep = s <= minS * 1.001; limits(); if (keep) s = minS; s = clamp(s, minS, maxS); apply(); }
+  window.addEventListener('resize', onResize);
+
+  async function boot() {
+    try {
+      const res = await fetch('routes.json', { cache: 'no-store' });
+      data = await res.json();
+    } catch (e) {
+      data = { rev: 0, wall: { name: 'Boulder Wall' }, grades: ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5'], routes: [] };
+      toast('Could not load the routes');
+    }
+    data.routes = data.routes || []; data.grades = data.grades || [];
+    const ready = new Promise((res) => { if (wall.complete && wall.naturalWidth) res(); else { wall.onload = res; wall.onerror = res; } });
+    await ready;
+    IW = wall.naturalWidth || 5000; IH = wall.naturalHeight || 2491;
+    limits(); s = minS; apply();
+    try {
+      const user = window.claude && (await window.claude.use('user'));
+      canEdit = !!(user && user.canEdit && user.canEdit());
+    } catch (e) { canEdit = false; }
+    if (location.hash === '#edit') canEdit = true;
+    selId = null;
+    renderChrome(); refreshMarks();
+    $('#loading').classList.add('done');
+    fitAll();
+  }
+  boot();
+})();
+</script>
+
+</body></html>
